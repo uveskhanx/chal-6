@@ -116,13 +116,22 @@ export function calculatePollutantSubIndex(
   const breakpoints = CPCB_BREAKPOINTS[pollutant];
   if (!breakpoints) return null;
 
-  // Align concentration to statutory reporting resolution
+  // 1. Direct piecewise linear interpolation on continuous concentration
+  for (const bp of breakpoints) {
+    if (concentration >= bp.bLow && concentration <= bp.bHigh) {
+      const subIndex = Math.round(
+        ((bp.iHigh - bp.iLow) / (bp.bHigh - bp.bLow)) * (concentration - bp.bLow) + bp.iLow
+      );
+      return { subIndex: Math.min(500, Math.max(0, subIndex)), category: bp.category };
+    }
+  }
+
+  // 2. Fallback for fractional values falling in discrete statutory gaps (e.g., 30.5 between 30 and 31)
   const effectiveConc =
     pollutant === "CO" || pollutant === "Pb"
       ? Math.round(concentration * 10) / 10
       : Math.round(concentration);
 
-  // Find matching breakpoint interval [bLow, bHigh]
   for (const bp of breakpoints) {
     if (effectiveConc >= bp.bLow && effectiveConc <= bp.bHigh) {
       const subIndex = Math.round(
@@ -132,9 +141,9 @@ export function calculatePollutantSubIndex(
     }
   }
 
-  // If concentration exceeds the highest statutory breakpoint: capped at 500 (Severe)
+  // 3. If concentration exceeds highest statutory breakpoint: capped at 500 (Severe)
   const highest = breakpoints[breakpoints.length - 1];
-  if (effectiveConc > highest.bHigh) {
+  if (concentration > highest.bHigh || effectiveConc > highest.bHigh) {
     return { subIndex: 500, category: "Severe" };
   }
 

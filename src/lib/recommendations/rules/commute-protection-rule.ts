@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences, createSupportingData } from "../types";
+import { Recommendation, UserPreferences } from "../types";
 
 /**
  * Rule: Sustainable Commute Exposure Mitigation.
@@ -18,10 +18,20 @@ export function evaluateCommuteProtectionRule(
   dataMode: "live" | "forecast" | "calibrated_baseline" | "demonstration"
 ): Recommendation | null {
   const aqi = report.cpcbNAQI ?? report.hisi;
+  const pm25 = report.pollutants["PM2.5"]?.value;
   const isHighSmog = report.cpcbCategory === "Severe" || report.cpcbCategory === "Very Poor" || aqi > 300;
   const isModerateSmog = report.cpcbCategory === "Poor" || aqi > 200;
 
-  const supportingData = createSupportingData(report);
+  const supportingData = {
+    aqi: report.cpcbNAQI,
+    aqiCategory: report.cpcbCategory,
+    dominantPollutant: report.dominantPollutant,
+    pm25Value: pm25,
+    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
+    windSpeedKmh: report.weather.windSpeedKmh,
+    isInversionActive: report.weather.isInversionActive,
+  };
+
   const supportingDataText = `Commute Mode: ${preferences.commuteMode}, AQI: ${aqi} (${report.cpcbCategory}), Dominant: ${report.dominantPollutant ?? "Particulates"}`;
 
   // Commute Mode: Walking or Cycling under High Smog

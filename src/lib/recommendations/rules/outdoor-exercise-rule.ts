@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences, createSupportingData } from "../types";
+import { Recommendation, UserPreferences } from "../types";
 
 /**
  * Rule: Outdoor Physical Activity & Exercise Mitigation.
@@ -25,7 +25,16 @@ export function evaluateOutdoorActivityRule(
   const isOutdoorPreferred = preferences.locationType === "outdoor_preferred" || preferences.activityType === "outdoor_exercise";
   const isSensitive = preferences.sensitivity !== "standard";
 
-  const supportingData = createSupportingData(report);
+  const supportingData = {
+    aqi: report.cpcbNAQI,
+    aqiCategory: report.cpcbCategory,
+    dominantPollutant: report.dominantPollutant,
+    pm25Value: pm25,
+    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
+    windSpeedKmh: report.weather.windSpeedKmh,
+    isInversionActive: report.weather.isInversionActive,
+  };
+
   const supportingDataText = `AQI: ${aqi} (${report.cpcbCategory}), PM2.5: ${pm25 ?? "N/A"} µg/m³, Inversion Layer: ${Math.round(report.weather.boundaryLayerHeightMeters)}m`;
 
   if (isSevereOrVeryPoor) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SingleSimulationRequestSchema } from "@/lib/simulator/types";
 import { runIndoorSimulation } from "@/lib/simulator/engine";
 import { generateIndoorRecommendations } from "@/lib/simulator/recommendations";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal simulation engine error.";
-    console.error("[SimulatorAPI] Simulation error:", error);
+    logger.error("[SimulatorAPI] Simulation error:", undefined, error);
     return NextResponse.json(
       {
         error: "SIMULATION_FAILED",

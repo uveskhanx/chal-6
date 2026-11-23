@@ -95,7 +95,7 @@ export function calculateCommuteDosimetry(
     }
   } else {
     // Lumped trip calculation
-    const tripDuration = Math.max(0.1, Number.isFinite(durationMinutes) ? durationMinutes : 1);
+    const tripDuration = Math.max(1, Number.isFinite(durationMinutes) ? durationMinutes : 1);
     const cBreathingPM25 = safeAmbientPM25 * P_v * breathingRatio;
     const cBreathingPM10 = safeAmbientPM10 * P_v * breathingRatio;
 

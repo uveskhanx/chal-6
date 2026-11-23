@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CoordinatesQuerySchema } from "@/lib/aqi/types";
 import { getAirQualityReport } from "@/lib/aqi/service";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("[API /api/aqi/live] Unhandled exception:", error);
+    logger.error("[API /api/aqi/live] Unhandled exception:", undefined, error);
     return NextResponse.json(
       {
         error: "INTERNAL_SERVER_ERROR",

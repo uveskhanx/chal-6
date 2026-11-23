@@ -9,6 +9,7 @@ import {
   compareIndoorScenarios,
   PRESET_SCENARIO_COMPARISONS,
 } from "@/lib/simulator/scenarios";
+import { logger } from "@/lib/logger";
 
 const CompareRequestSchema = z.object({
   baselineRoom: RoomConfigurationSchema,
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal comparison engine error.";
-    console.error("[SimulatorCompareAPI] Error:", error);
+    logger.error("[SimulatorCompareAPI] Error:", undefined, error);
     return NextResponse.json(
       {
         error: "COMPARISON_FAILED",

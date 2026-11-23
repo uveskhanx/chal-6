@@ -3,6 +3,7 @@ import { ChatRequestSchema, AgentStreamEvent } from "@/lib/agent/types";
 import { runAgentOrchestrator } from "@/lib/agent/orchestrator";
 import { createConversation, getConversation } from "@/lib/agent/conversation-store";
 import { getUserPreferences } from "@/lib/agent/user-store";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
             controller.enqueue(encoder.encode(payload));
           } catch (streamError) {
             // Client closed connection or stream terminated
-            console.debug("[API /api/chat] Client disconnected or stream closed prematurely:", streamError);
+            logger.debug("[API /api/chat] Client disconnected or stream closed prematurely:", { error: String(streamError) });
           }
         };
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
             onEvent: sendEvent,
           });
         } catch (error: unknown) {
-          console.error("[API /api/chat] Orchestrator exception:", error);
+          logger.error("[API /api/chat] Orchestrator exception:", undefined, error);
           const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred in the agent loop.";
           sendEvent({
             type: "error",
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("[API /api/chat] Failed to process request:", error);
+    logger.error("[API /api/chat] Failed to process request:", undefined, error);
     return new Response(
       JSON.stringify({
         error: "INTERNAL_SERVER_ERROR",

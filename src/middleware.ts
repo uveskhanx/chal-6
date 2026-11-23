@@ -78,15 +78,18 @@ export function middleware(request: NextRequest) {
   const urlPath = request.nextUrl.pathname;
   const rawSearch = request.nextUrl.search;
   const rawUrl = request.url;
-  if (
+  const isTraversal =
     urlPath.includes("..") ||
     rawSearch.includes("..") ||
-    rawUrl.includes("..") ||
+    rawUrl.includes("../") ||
+    rawUrl.includes("..\\");
+  const isNullByte =
     rawSearch.includes("%00") ||
-    rawUrl.includes("%00") ||
     rawSearch.includes("\0") ||
-    rawUrl.includes("\0")
-  ) {
+    rawUrl.includes("%00") ||
+    rawUrl.includes("\0");
+
+  if (isTraversal || isNullByte) {
     return new NextResponse(
       JSON.stringify({ error: "BAD_REQUEST", message: "Malicious sequence detected." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

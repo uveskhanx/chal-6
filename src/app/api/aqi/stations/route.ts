@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StationsQuerySchema } from "@/lib/aqi/types";
 import { getNearbyCPCBStations } from "@/lib/aqi/providers/cpcb";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error: unknown) {
-    console.error("[API /api/aqi/stations] Unhandled exception:", error);
+    logger.error("[API /api/aqi/stations] Unhandled exception:", undefined, error);
     return NextResponse.json(
       {
         error: "INTERNAL_SERVER_ERROR",

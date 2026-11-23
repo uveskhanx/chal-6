@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences, createSupportingData } from "../types";
+import { Recommendation, UserPreferences } from "../types";
 
 /**
  * Rule: Family & Vulnerable Household Smog Defense.
@@ -31,7 +31,16 @@ export function evaluateFamilySmogDefenseRule(
     return null;
   }
 
-  const supportingData = createSupportingData(report);
+  const supportingData = {
+    aqi: report.cpcbNAQI,
+    aqiCategory: report.cpcbCategory,
+    dominantPollutant: report.dominantPollutant,
+    pm25Value: pm25,
+    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
+    windSpeedKmh: report.weather.windSpeedKmh,
+    isInversionActive: report.weather.isInversionActive,
+  };
+
   const supportingDataText = `AQI: ${aqi} (${report.cpcbCategory}), PM2.5: ${pm25} µg/m³, Inversion Height: ${Math.round(report.weather.boundaryLayerHeightMeters)}m`;
 
   if (hasChildren && isPoorOrWorse) {
