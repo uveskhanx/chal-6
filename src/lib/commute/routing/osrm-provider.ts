@@ -1,5 +1,6 @@
 import "server-only";
 import { CalculatedRoute, RoutePoint, RouteSegment } from "../types";
+import { logger } from "@/lib/logger";
 
 /**
  * Open Source Routing Machine (OSRM) Public Provider
@@ -103,7 +104,7 @@ export async function calculateOSRMRoute(
       trafficAware: false,
     };
   } catch (error) {
-    console.warn("[OSRM] Routing request failed:", error);
+    logger.warn("[OSRM] Routing request failed:", undefined, error);
     return null;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);

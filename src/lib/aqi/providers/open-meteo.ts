@@ -1,5 +1,6 @@
 import "server-only";
 import { AtmosphericWeather, RawPollutantReading } from "../types";
+import { logger } from "@/lib/logger";
 
 function degreesToCardinal(deg: number): string {
   const directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
@@ -99,7 +100,7 @@ export async function fetchOpenMeteoAirQuality(
 
     return readings.length >= 2 ? readings : null;
   } catch (error) {
-    console.warn("[Open-Meteo Air Quality Provider] Error fetching pollutants:", error);
+    logger.warn("[Open-Meteo Air Quality Provider] Error fetching pollutants:", undefined, error);
     return null;
   }
 }
@@ -188,7 +189,7 @@ export async function fetchOpenMeteoWeather(
       observedAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.warn("[Open-Meteo Provider] Error fetching weather, returning calibrated fallback:", error);
+    logger.warn("[Open-Meteo Provider] Error fetching weather, returning calibrated fallback:", undefined, error);
     return fallbackWeather;
   }
 }

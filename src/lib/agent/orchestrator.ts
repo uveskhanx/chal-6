@@ -7,6 +7,7 @@ import { AGENT_CONFIG, isGeminiConfigured } from "./config";
 import { callGemini, GeminiCallParams, GeminiContent, GeminiPart } from "./gemini-client";
 import { executeToolCall } from "./tools/executor";
 import { getBoundedConversationContext, addMessageToConversation } from "./conversation-store";
+import { logger } from "@/lib/logger";
 
 export interface AgentRunOptions {
   userMessage: string;
@@ -125,7 +126,7 @@ export async function runAgentOrchestrator(options: AgentRunOptions): Promise<Ag
 
         // Loop detection: Prevent repeated identical tool calls
         if (executedSignatures.has(signature)) {
-          console.warn(`[AgentLoop] Duplicate tool call detected: ${signature}. Breaking potential infinite loop.`);
+          logger.warn(`[AgentLoop] Duplicate tool call detected: ${signature}. Breaking potential infinite loop.`);
           functionResponseParts.push({
             functionResponse: {
               name: call.name,

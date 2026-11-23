@@ -2,6 +2,7 @@ import "server-only";
 import { getRegisteredTool } from "./registry";
 import { AgentContext } from "../types";
 import { AGENT_CONFIG } from "../config";
+import { logger } from "@/lib/logger";
 
 export interface ToolExecutionResponse {
   toolName: string;
@@ -73,7 +74,7 @@ export async function executeToolCall(
     };
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error occurred while executing tool.";
-    console.warn(`[ToolExecutor] Error executing '${toolName}':`, errorMsg);
+    logger.warn(`[ToolExecutor] Error executing '${toolName}':`, undefined, error);
     return {
       toolName,
       toolCallId,

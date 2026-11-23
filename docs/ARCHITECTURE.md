@@ -81,7 +81,7 @@ $$\text{Deposited Dose } (\mu\text{g}) = \text{Inhaled Mass} \cdot DF$$
 
 ## 4. Verification & Testing Strategy
 
-- **169 Unit, Integration & Security Tests**: Executed across 74 test suites with zero failures.
+- **179 Unit, Integration & Security Tests**: Executed across 77 test suites with zero failures.
 - **Node.js Native Test Runner**: Automated coverage reporting via `--experimental-test-coverage` with >93% coverage.
 - **Zero Linter Warnings**: Zero ESLint issues under Next.js Core Web Vitals config and zero disabled lint rules.
 - **Strict TypeScript**: `npx tsc --noEmit` verified with zero type errors.

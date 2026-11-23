@@ -1,6 +1,7 @@
 import "server-only";
 import { RawPollutantReading, MonitoringStation, PollutantCode } from "../types";
 import { env } from "../../env";
+import { logger } from "@/lib/logger";
 
 interface OpenAQLocationResult {
   id: number;
@@ -64,7 +65,7 @@ export async function fetchOpenAQData(
 
     if (!locRes.ok) {
       if (locRes.status === 429) {
-        console.warn("[OpenAQ v3] Rate limit exceeded (429). Triggering fallback.");
+        logger.warn("[OpenAQ v3] Rate limit exceeded (429). Triggering fallback.");
       }
       clearTimeout(timeoutId);
       return null;
@@ -131,7 +132,7 @@ export async function fetchOpenAQData(
 
     return { station, readings };
   } catch (error) {
-    console.warn("[OpenAQ v3 Provider] Request failed or timed out:", error);
+    logger.warn("[OpenAQ v3 Provider] Request failed or timed out:", undefined, error);
     return null;
   }
 }

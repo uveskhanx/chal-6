@@ -1,5 +1,6 @@
 import "server-only";
 import { RoutePoint } from "../types";
+import { logger } from "@/lib/logger";
 
 export interface GeocodingResult {
   query: string;
@@ -164,7 +165,7 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
       }
     }
   } catch (error) {
-    console.warn("[Geocoding] OSM Nominatim geocoding lookup failed:", error);
+    logger.warn("[Geocoding] OSM Nominatim geocoding lookup failed:", undefined, error);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }

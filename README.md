@@ -6,7 +6,7 @@
 [![React 19](https://img.shields.io/badge/React-19.1-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Google Gemini API](https://img.shields.io/badge/Google%20GenAI-Gemini%202.5%20Flash-8E75B2?logo=google)](https://ai.google.dev/)
-[![Tests](https://img.shields.io/badge/Tests-169%2F169%20Passing-success)](https://github.com/Zaidkhann/promptWar-challenge-6)
+[![Tests](https://img.shields.io/badge/Tests-179%2F179%20Passing-success)](https://github.com/Zaidkhann/promptWar-challenge-6)
 [![ESLint](https://img.shields.io/badge/ESLint-0%20Warnings-success)](https://eslint.org/)
 [![Security](https://img.shields.io/badge/Security-0%20Vulnerabilities-success)](https://github.com/Zaidkhann/promptWar-challenge-6)
 [![WCAG](https://img.shields.io/badge/Accessibility-WCAG%202.1%20AA-0891B2)](https://www.w3.org/WAI/standards-guidelines/wcag/)
@@ -218,7 +218,7 @@ npm test
    ```bash
    npm run lint        # Must be 0 errors, 0 warnings
    npm run typecheck   # Must be 0 TypeScript errors
-   npm test            # Must pass 169/169 test suites
+   npm test            # Must pass 179/179 test suites
    npm run build       # Production Next.js bundle compilation
    ```
 

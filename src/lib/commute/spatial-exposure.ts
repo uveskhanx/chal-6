@@ -10,6 +10,7 @@ import { VERIFIED_CPCB_STATIONS } from "@/lib/aqi/providers/cpcb";
 import { interpolateSpatialAQI, StationWithReadings } from "@/lib/aqi/idw-interpolator";
 import { calculateHaversineDistanceKm } from "@/lib/aqi/providers/cpcb";
 import { fetchOpenAQData } from "@/lib/aqi/providers/openaq";
+import { logger } from "@/lib/logger";
 
 /**
  * Returns the Atmospheric Boundary Layer (ABL) Diurnal Dispersion Multiplier
@@ -136,7 +137,7 @@ export async function fetchRouteOpenAQStations(
 
     return validStations;
   } catch (error) {
-    console.warn("[Commute Spatial Exposure] OpenAQ stations fetch failed gracefully:", error);
+    logger.warn("[Commute Spatial Exposure] OpenAQ stations fetch failed gracefully:", undefined, error);
     return [];
   }
 }

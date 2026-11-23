@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "crypto";
 import { Conversation, AgentMessage } from "./types";
 import { AGENT_CONFIG } from "./config";
+import { logger } from "@/lib/logger";
 
 // In-Memory Thread-Safe Conversation Store with User Isolation
 const conversationsMap = new Map<string, Conversation>();
@@ -29,7 +30,7 @@ export function getConversation(conversationId: string, userId: string): Convers
 
   // Strict User Ownership Enforcement
   if (conversation.userId !== userId) {
-    console.warn(`[Security Alert] User '${userId}' attempted to access conversation owned by '${conversation.userId}'.`);
+    logger.warn(`[Security Alert] User '${userId}' attempted to access conversation owned by '${conversation.userId}'.`);
     return null;
   }
 

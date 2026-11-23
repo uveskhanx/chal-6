@@ -1,6 +1,7 @@
 import "server-only";
 import { getAirQualityReport } from "@/lib/aqi/service";
 import { OutdoorConditions } from "./types";
+import { logger } from "@/lib/logger";
 
 export interface OutdoorFetchOptions {
   lat?: number;
@@ -58,7 +59,11 @@ export async function getOutdoorConditionsForSimulation(
       };
     }
   } catch (error) {
-    console.warn("[SimulatorDataAdapter] Error fetching live outdoor AQI, applying calibrated fallback:", error);
+    logger.warn(
+      "[SimulatorDataAdapter] Error fetching live outdoor AQI, applying calibrated fallback:",
+      undefined,
+      error
+    );
   }
 
   // 3. Fallback when outdoor sensors are offline or reporting insufficient data

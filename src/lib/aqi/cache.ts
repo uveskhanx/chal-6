@@ -1,6 +1,7 @@
 import "server-only";
 import { NormalizedAirQualityReport } from "./types";
 import { env } from "../env";
+import { logger } from "@/lib/logger";
 
 interface CacheEntry {
   data: NormalizedAirQualityReport;
@@ -66,7 +67,7 @@ export async function getCachedAQIReport(key: string): Promise<NormalizedAirQual
       }
     } catch (error) {
       // Fail-open: Redis timeout or network error falls through silently to provider fetch
-      console.debug("[Cache] Upstash Redis read error:", error);
+      logger.debug("[Cache] Upstash Redis read error:", { error: String(error) });
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }
@@ -109,7 +110,7 @@ export async function setCachedAQIReport(key: string, data: NormalizedAirQuality
       );
     } catch (error) {
       // Fail-open: Redis timeout or network error should not block user experience
-      console.debug("[Cache] Upstash Redis write error:", error);
+      logger.debug("[Cache] Upstash Redis write error:", { error: String(error) });
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }

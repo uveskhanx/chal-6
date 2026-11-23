@@ -9,6 +9,7 @@ import {
   CPCB_BENCHMARKS,
   POLLUTANT_NAMES,
 } from "./cpcb-calculator";
+import { logger } from "@/lib/logger";
 
 /**
  * Physical Constants for Standard Atmospheric Gas Conversions:
@@ -102,7 +103,7 @@ export function normalizePollutantReadings(
 
     // Plausibility & anomaly check (filter out impossible or sensor-error readings)
     if (normalized.normalizedValue > 2500) {
-      console.warn(`[AQI Normalizer] Flagged extreme outlier/sensor saturation for ${r.pollutant}: ${normalized.normalizedValue}`);
+      logger.warn(`[AQI Normalizer] Flagged extreme outlier/sensor saturation for ${r.pollutant}: ${normalized.normalizedValue}`);
       continue;
     }
 
