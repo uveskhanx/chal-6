@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { AGENT_CONFIG, isGeminiConfigured } from "./config";
 import { SAANSAI_SYSTEM_INSTRUCTION } from "./system-instructions";
 import { getGeminiFunctionDeclarations } from "./tools/registry";
+import { logger } from "@/lib/logger";
 
 export class GeminiConfigurationError extends Error {
   constructor(message = "Gemini API key is not configured. Please set GEMINI_API_KEY in your environment.") {
@@ -26,6 +27,24 @@ function getGenAI(): GoogleGenAI {
   }
 
   return genAIInstance;
+}
+
+function isTransientError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("429") ||
+    msg.includes("resource_exhausted") ||
+    msg.includes("503") ||
+    msg.includes("unavailable") ||
+    msg.includes("fetch failed") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout")
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export interface GeminiPart {
@@ -101,8 +120,27 @@ export async function callGemini(params: GeminiCallParams): Promise<GeminiCallOu
     }
   };
 
+  const generateWithRetry = async (modelName: string): Promise<unknown> => {
+    const maxRetries = 2;
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      try {
+        return await generateWithTimeout(modelName);
+      } catch (err) {
+        attempt++;
+        if (attempt <= maxRetries && isTransientError(err)) {
+          const delayMs = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 200, 3000);
+          logger.warn(`[GeminiClient] Transient error on ${modelName}. Retrying in ${Math.round(delayMs)}ms...`, undefined, err);
+          await sleep(delayMs);
+        } else {
+          throw err;
+        }
+      }
+    }
+  };
+
   try {
-    const response = await generateWithTimeout(primaryModel);
+    const response = await generateWithRetry(primaryModel);
     return parseGeminiResponse(response, primaryModel);
   } catch (primaryError: unknown) {
     const primaryMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
@@ -112,16 +150,15 @@ export async function callGemini(params: GeminiCallParams): Promise<GeminiCallOu
       AGENT_CONFIG.fallbackModel !== primaryModel &&
       !primaryMsg.includes("GEMINI_API_KEY")
     ) {
-      console.warn(
-        `[GeminiClient] Primary model (${primaryModel}) failed. Attempting fallback model (${AGENT_CONFIG.fallbackModel}):`,
-        primaryMsg
+      logger.warn(
+        `[GeminiClient] Primary model (${primaryModel}) failed. Attempting fallback model (${AGENT_CONFIG.fallbackModel}): ${primaryMsg}`
       );
       try {
-        const fallbackResponse = await generateWithTimeout(AGENT_CONFIG.fallbackModel);
+        const fallbackResponse = await generateWithRetry(AGENT_CONFIG.fallbackModel);
         return parseGeminiResponse(fallbackResponse, AGENT_CONFIG.fallbackModel);
       } catch (fallbackError: unknown) {
         const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-        console.error("[GeminiClient] Fallback model also failed:", fallbackMsg);
+        logger.error(`[GeminiClient] Fallback model also failed: ${fallbackMsg}`, undefined, fallbackError);
         throw fallbackError;
       }
     }

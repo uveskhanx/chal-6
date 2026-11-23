@@ -74,6 +74,28 @@ describe("CPCB Calculator — Statutory NAQI Engine", () => {
       assert.equal(o3Good.subIndex, 30);
       assert.equal(o3Good.category, "Good");
     });
+
+    it("handles continuous floating point concentrations without gap anomalies", () => {
+      // Continuous float test: 30.4 -> rounds to 30 -> Good
+      const resBelow = calculatePollutantSubIndex("PM2.5", 30.4);
+      assert.ok(resBelow);
+      assert.equal(resBelow.category, "Good");
+
+      // Continuous float test: 30.5 -> rounds to 31 -> Satisfactory
+      const resAbove = calculatePollutantSubIndex("PM2.5", 30.5);
+      assert.ok(resAbove);
+      assert.equal(resAbove.category, "Satisfactory");
+
+      // CO 1.04 -> rounds to 1.0 -> Good
+      const coBelow = calculatePollutantSubIndex("CO", 1.04);
+      assert.ok(coBelow);
+      assert.equal(coBelow.category, "Good");
+
+      // CO 1.06 -> rounds to 1.1 -> Satisfactory
+      const coAbove = calculatePollutantSubIndex("CO", 1.06);
+      assert.ok(coAbove);
+      assert.equal(coAbove.category, "Satisfactory");
+    });
   });
 
   describe("AQI Category Mapping", () => {

@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { z } from "zod";
 import {
   SaansAIError,
   ValidationError,
@@ -7,6 +8,8 @@ import {
   UnauthorizedError,
   RateLimitExceededError,
   ExternalProviderError,
+  isSaansAIError,
+  formatErrorResponse,
 } from "@/lib/errors";
 
 describe("SaansAI Domain Errors Architecture", () => {
@@ -54,5 +57,45 @@ describe("SaansAI Domain Errors Architecture", () => {
     assert.strictEqual(providerErr.statusCode, 502);
     assert.strictEqual(providerErr.code, "EXTERNAL_PROVIDER_ERROR");
     assert.ok(providerErr.message.includes("OpenAQ"));
+  });
+
+  it("identifies SaansAIError instances with isSaansAIError type guard", () => {
+    assert.strictEqual(isSaansAIError(new ValidationError()), true);
+    assert.strictEqual(isSaansAIError(new Error("plain error")), false);
+    assert.strictEqual(isSaansAIError(null), false);
+    assert.strictEqual(isSaansAIError("string error"), false);
+  });
+
+  it("formats domain errors into uniform HTTP JSON responses", async () => {
+    const res = formatErrorResponse(new NotFoundError("Station"));
+    assert.strictEqual(res.status, 404);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+    assert.strictEqual(data.error, "NOT_FOUND");
+    assert.strictEqual(data.message, "Station not found");
+  });
+
+  it("formats Zod validation errors into uniform 400 responses", async () => {
+    const schema = z.object({ lat: z.number() });
+    const parseResult = schema.safeParse({ lat: "invalid" });
+    assert.strictEqual(parseResult.success, false);
+
+    if (!parseResult.success) {
+      const res = formatErrorResponse(parseResult.error);
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.success, false);
+      assert.strictEqual(data.error, "VALIDATION_FAILED");
+      assert.ok(data.details);
+    }
+  });
+
+  it("formats generic unknown exceptions into uniform 500 responses", async () => {
+    const res = formatErrorResponse(new Error("Unexpected crash"));
+    assert.strictEqual(res.status, 500);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+    assert.strictEqual(data.error, "INTERNAL_SERVER_ERROR");
+    assert.strictEqual(data.message, "Unexpected crash");
   });
 });

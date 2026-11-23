@@ -37,7 +37,13 @@ export function stepAnalyticalConcentration(
   kTotal: number,
   dtHours: number
 ): number {
-  if (kTotal <= 0) {
+  if (!Number.isFinite(currentC) || currentC < 0) {
+    currentC = 0;
+  }
+  if (!Number.isFinite(alpha) || alpha < 0) {
+    alpha = 0;
+  }
+  if (kTotal <= 0 || !Number.isFinite(kTotal)) {
     return Math.max(0, currentC + alpha * dtHours);
   }
   const cSteadyState = alpha / kTotal;
@@ -103,9 +109,10 @@ export function runIndoorSimulation(options: EngineRunOptions): SimulationOutput
   const k_d_pm10 = DEPOSITION_RATES.pm10;
 
   // 5. Air Purifier CADR & Filtration Removal Rate k_f (h⁻¹)
+  const safeRoomVolumeM3 = Math.max(1.0, roomVolumeM3);
   const fanMultiplier = room.hasAirPurifier ? FAN_SPEED_MULTIPLIERS[room.purifierFanSpeed] : 0;
   const effectiveCADR = room.hasAirPurifier ? room.purifierCADR * fanMultiplier : 0; // m³/h
-  const k_f = roomVolumeM3 > 0 ? effectiveCADR / roomVolumeM3 : 0; // h⁻¹
+  const k_f = safeRoomVolumeM3 > 0 ? effectiveCADR / safeRoomVolumeM3 : 0; // h⁻¹
 
   // 6. Total Removal Rates K_total (h⁻¹)
   const K_total_pm25 = effectiveACH + k_f + k_d_pm25;
@@ -189,8 +196,8 @@ export function runIndoorSimulation(options: EngineRunOptions): SimulationOutput
       const activeS_pm25 = isSourceActive ? S_rate_pm25_hourly : 0;
       const activeS_pm10 = isSourceActive ? S_rate_pm10_hourly : 0;
 
-      const alpha_pm25 = P_pm25 * effectiveACH * C_out_pm25 + activeS_pm25 / roomVolumeM3;
-      const alpha_pm10 = P_pm10 * effectiveACH * C_out_pm10 + activeS_pm10 / roomVolumeM3;
+      const alpha_pm25 = P_pm25 * effectiveACH * C_out_pm25 + activeS_pm25 / safeRoomVolumeM3;
+      const alpha_pm10 = P_pm10 * effectiveACH * C_out_pm10 + activeS_pm10 / safeRoomVolumeM3;
 
       currentPM25 = stepAnalyticalConcentration(currentPM25, alpha_pm25, K_total_pm25, timeStepHours);
       currentPM10 = stepAnalyticalConcentration(currentPM10, alpha_pm10, K_total_pm10, timeStepHours);

@@ -51,14 +51,15 @@ export async function executeToolCall(
     };
   }
 
-  // 2. Execute with Bounded Timeout
+  // 2. Execute with Bounded Timeout & Resource Cleanup
+  let timeoutId: NodeJS.Timeout | undefined;
   try {
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
         () => reject(new Error(`TOOL_TIMEOUT: '${toolName}' exceeded ${AGENT_CONFIG.toolTimeoutMs}ms execution limit.`)),
         AGENT_CONFIG.toolTimeoutMs
-      )
-    );
+      );
+    });
 
     const executionPromise = tool.execute(validation.data as Record<string, unknown>, context);
     const result = await Promise.race([executionPromise, timeoutPromise]);
@@ -83,5 +84,9 @@ export async function executeToolCall(
       isError: true,
       executionTimeMs: Date.now() - startTime,
     };
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }

@@ -4,6 +4,7 @@ import {
   calculateRoomVolumeM3,
   calculateFloorAreaM2,
   runIndoorSimulation,
+  stepAnalyticalConcentration,
 } from "@/lib/simulator/engine";
 import { RoomConfiguration, OutdoorConditions } from "@/lib/simulator/types";
 
@@ -151,6 +152,22 @@ describe("SaansAI Indoor Air Quality Simulation Engine", () => {
         assert.ok(!isNaN(p.indoorPM25));
         assert.ok(!isNaN(p.indoorPM10));
       }
+    });
+
+    it("verifies analytical ODE step function under zero loss, steady-state and non-finite inputs", () => {
+      // 1. Zero removal rate kTotal = 0: simple linear accumulation
+      const linearAccum = stepAnalyticalConcentration(100, 50, 0, 2); // 100 + 50 * 2 = 200
+      assert.strictEqual(linearAccum, 200);
+
+      // 2. Exact steady-state: when C(0) == C_ss, concentration remains unchanged
+      const alpha = 100;
+      const kTotal = 2; // C_ss = 50
+      const atSteadyState = stepAnalyticalConcentration(50, alpha, kTotal, 1);
+      assert.ok(Math.abs(atSteadyState - 50) < 1e-6);
+
+      // 3. Non-finite inputs gracefully bounded to 0
+      assert.strictEqual(stepAnalyticalConcentration(-10, alpha, kTotal, 1), 50 * (1 - Math.exp(-2)));
+      assert.strictEqual(stepAnalyticalConcentration(NaN, alpha, kTotal, 1), 50 * (1 - Math.exp(-2)));
     });
   });
 });

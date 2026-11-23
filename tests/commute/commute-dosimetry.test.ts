@@ -78,4 +78,30 @@ describe("SaansAI Commute Dosimetry & Physiological Model", () => {
     assert.ok(n95Masked.depositedDosePM25Ug < unmasked.depositedDosePM25Ug * 0.06);
     assert.equal(n95Masked.effectiveMaskFiltration, 95);
   });
+
+  it("safely handles numerical boundaries, zero duration, and non-finite inputs", () => {
+    const zeroDuration = calculateCommuteDosimetry({
+      distanceKm: 0,
+      durationMinutes: 0,
+      mode: "metro_underground",
+      ambientPM25: 100,
+      maskType: "NONE",
+    });
+
+    assert.ok(Number.isFinite(zeroDuration.inhaledMassPM25Ug));
+    assert.ok(Number.isFinite(zeroDuration.depositedDosePM25Ug));
+    assert.ok(zeroDuration.inhaledMassPM25Ug >= 0);
+
+    const negativeAmbient = calculateCommuteDosimetry({
+      distanceKm: 5,
+      durationMinutes: 20,
+      mode: "walking",
+      ambientPM25: -50,
+      maskType: "NONE",
+    });
+
+    assert.strictEqual(negativeAmbient.inhaledMassPM25Ug, 0);
+    assert.strictEqual(negativeAmbient.depositedDosePM25Ug, 0);
+    assert.strictEqual(negativeAmbient.timeWeightedAveragePM25, 0);
+  });
 });

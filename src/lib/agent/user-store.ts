@@ -8,7 +8,7 @@ export function getUserPreferences(userId: string): UserPreferences {
   if (!userPreferencesStore.has(userId)) {
     userPreferencesStore.set(userId, { ...DEFAULT_USER_PREFERENCES });
   }
-  return userPreferencesStore.get(userId)!;
+  return { ...userPreferencesStore.get(userId)! };
 }
 
 export function updateUserPreferences(
@@ -33,5 +33,5 @@ export function updateUserPreferences(
 
 export function resetUserPreferences(userId: string): UserPreferences {
   userPreferencesStore.set(userId, { ...DEFAULT_USER_PREFERENCES });
-  return DEFAULT_USER_PREFERENCES;
+  return { ...DEFAULT_USER_PREFERENCES };
 }

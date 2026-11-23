@@ -101,6 +101,9 @@ export const POLLUTANT_NAMES: Record<PollutantCode, string> = {
 
 /**
  * Calculates the CPCB sub-index for a single pollutant using piecewise linear interpolation.
+ * Statutory reference: Central Pollution Control Board (CPCB), October 2014, National Air Quality Index.
+ * Continuous values are aligned to pollutant measurement precision (CO and Pb to 0.1, others to 1)
+ * to prevent floating-point gap discontinuities between discrete breakpoint thresholds.
  */
 export function calculatePollutantSubIndex(
   pollutant: PollutantCode,
@@ -113,19 +116,25 @@ export function calculatePollutantSubIndex(
   const breakpoints = CPCB_BREAKPOINTS[pollutant];
   if (!breakpoints) return null;
 
-  // Find matching breakpoint
+  // Align concentration to statutory reporting resolution
+  const effectiveConc =
+    pollutant === "CO" || pollutant === "Pb"
+      ? Math.round(concentration * 10) / 10
+      : Math.round(concentration);
+
+  // Find matching breakpoint interval [bLow, bHigh]
   for (const bp of breakpoints) {
-    if (concentration >= bp.bLow && concentration <= bp.bHigh) {
+    if (effectiveConc >= bp.bLow && effectiveConc <= bp.bHigh) {
       const subIndex = Math.round(
-        ((bp.iHigh - bp.iLow) / (bp.bHigh - bp.bLow)) * (concentration - bp.bLow) + bp.iLow
+        ((bp.iHigh - bp.iLow) / (bp.bHigh - bp.bLow)) * (effectiveConc - bp.bLow) + bp.iLow
       );
       return { subIndex: Math.min(500, Math.max(0, subIndex)), category: bp.category };
     }
   }
 
-  // If concentration exceeds the highest breakpoint: capped at 500 (Severe)
+  // If concentration exceeds the highest statutory breakpoint: capped at 500 (Severe)
   const highest = breakpoints[breakpoints.length - 1];
-  if (concentration > highest.bHigh) {
+  if (effectiveConc > highest.bHigh) {
     return { subIndex: 500, category: "Severe" };
   }
 

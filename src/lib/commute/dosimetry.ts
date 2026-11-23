@@ -47,10 +47,17 @@ export function calculateCommuteDosimetry(
     mode,
     activityProfile,
     ambientPM25,
-    ambientPM10 = ambientPM25 * 1.55,
+    ambientPM10,
     maskType = "NONE",
     customPenetrationFactor,
   } = params;
+
+  // Sanitize numerical inputs to ensure physical validity
+  const safeAmbientPM25 = Math.max(0, Number.isFinite(ambientPM25) ? ambientPM25 : 0);
+  const safeAmbientPM10 = Math.max(
+    0,
+    Number.isFinite(ambientPM10) ? (ambientPM10 as number) : safeAmbientPM25 * 1.55
+  );
 
   const modeProfile = VEHICLE_CABIN_PROFILES[mode] || VEHICLE_CABIN_PROFILES.car_ac_recirc;
   const selectedActivity = activityProfile || modeProfile.activityProfile;
@@ -69,9 +76,11 @@ export function calculateCommuteDosimetry(
   if (segments && segments.length > 0) {
     // Segment-by-segment integration
     for (const seg of segments) {
-      const segDuration = Math.max(0.1, seg.durationMinutes);
-      const cBreathingPM25 = seg.estimatedPM25 * P_v * breathingRatio;
-      const cBreathingPM10 = seg.estimatedPM10 * P_v * breathingRatio;
+      const segDuration = Math.max(0.01, Number.isFinite(seg.durationMinutes) ? seg.durationMinutes : 0.1);
+      const segPM25 = Math.max(0, Number.isFinite(seg.estimatedPM25) ? seg.estimatedPM25 : safeAmbientPM25);
+      const segPM10 = Math.max(0, Number.isFinite(seg.estimatedPM10) ? seg.estimatedPM10 : safeAmbientPM10);
+      const cBreathingPM25 = segPM25 * P_v * breathingRatio;
+      const cBreathingPM10 = segPM10 * P_v * breathingRatio;
 
       // Inhaled mass = C (ug/m3) * V_E (m3/min) * dt (min) -> ug
       const inhaledSegPM25 = cBreathingPM25 * ventRates.m3PerMin * segDuration;
@@ -86,9 +95,9 @@ export function calculateCommuteDosimetry(
     }
   } else {
     // Lumped trip calculation
-    const tripDuration = Math.max(1, durationMinutes);
-    const cBreathingPM25 = ambientPM25 * P_v * breathingRatio;
-    const cBreathingPM10 = ambientPM10 * P_v * breathingRatio;
+    const tripDuration = Math.max(0.1, Number.isFinite(durationMinutes) ? durationMinutes : 1);
+    const cBreathingPM25 = safeAmbientPM25 * P_v * breathingRatio;
+    const cBreathingPM10 = safeAmbientPM10 * P_v * breathingRatio;
 
     totalInhaledPM25Ug = cBreathingPM25 * ventRates.m3PerMin * tripDuration;
     totalInhaledPM10Ug = cBreathingPM10 * ventRates.m3PerMin * tripDuration;

@@ -77,11 +77,15 @@ export function middleware(request: NextRequest) {
   // 1. Path traversal & null-byte injection guard
   const urlPath = request.nextUrl.pathname;
   const rawSearch = request.nextUrl.search;
+  const rawUrl = request.url;
   if (
     urlPath.includes("..") ||
     rawSearch.includes("..") ||
+    rawUrl.includes("..") ||
     rawSearch.includes("%00") ||
-    rawSearch.includes("\0")
+    rawUrl.includes("%00") ||
+    rawSearch.includes("\0") ||
+    rawUrl.includes("\0")
   ) {
     return new NextResponse(
       JSON.stringify({ error: "BAD_REQUEST", message: "Malicious sequence detected." }),
