@@ -5,6 +5,7 @@ import {
   PollutantCode,
   PollutantDetail,
   DataProvenanceType,
+  AtmosphericWeather,
 } from "./types";
 import { MOCK_SCENARIOS, ScenarioData } from "@/data/mock-scenarios";
 import { fetchOpenAQData } from "./providers/openaq";
@@ -104,6 +105,65 @@ function scenarioToReport(scenario: ScenarioData): NormalizedAirQualityReport {
   };
 }
 
+interface AssembleReportParams {
+  station: MonitoringStation;
+  normalizedPollutants: Partial<Record<PollutantCode, PollutantDetail>>;
+  weather: AtmosphericWeather;
+  provenanceType: DataProvenanceType;
+  badgeText: string;
+  source: string;
+  freshnessMinutes: number;
+  confidenceScore: number;
+  disclaimer: string;
+  isInterpolated?: boolean;
+  isDemo?: boolean;
+}
+
+function assembleReportFromNormalized(params: AssembleReportParams): NormalizedAirQualityReport {
+  const {
+    station,
+    normalizedPollutants,
+    weather,
+    provenanceType,
+    badgeText,
+    source,
+    freshnessMinutes,
+    confidenceScore,
+    disclaimer,
+    isInterpolated = false,
+    isDemo = false,
+  } = params;
+
+  const cpcbResult = calculateCompositeCPCB_NAQI(normalizedPollutants);
+  const pm25Val = normalizedPollutants["PM2.5"]?.value;
+  const pm10Val = normalizedPollutants["PM10"]?.value;
+  const hisiResult = calculateHISI(pm25Val, pm10Val);
+
+  return {
+    station,
+    calculatedAt: new Date().toISOString(),
+    cpcbNAQI: cpcbResult.aqi,
+    cpcbCategory: cpcbResult.category,
+    dominantPollutant: cpcbResult.dominantPollutant,
+    isDataSufficient: cpcbResult.isDataSufficient,
+    dataSufficiencyNotes: cpcbResult.notes,
+    hisi: hisiResult.hisi,
+    hisiCategory: hisiResult.category,
+    pollutants: normalizedPollutants as Record<PollutantCode, PollutantDetail | undefined>,
+    weather,
+    provenance: {
+      type: provenanceType,
+      badgeText,
+      source,
+      freshnessMinutes,
+      confidenceScore,
+      isInterpolated,
+      isDemo,
+    },
+    disclaimer,
+  };
+}
+
 /**
  * Main Air Quality Orchestration Engine.
  * Resolves live telemetry from OpenAQ v3 & Open-Meteo with caching, CPCB normalization, and fallbacks.
@@ -141,12 +201,6 @@ export async function getAirQualityReport(params: {
   // 5. If OpenAQ returned valid observations, normalize and compute statutory NAQI
   if (openAQData && openAQData.readings.length > 0) {
     const normalizedPollutants = normalizePollutantReadings(openAQData.readings);
-    const cpcbResult = calculateCompositeCPCB_NAQI(normalizedPollutants);
-
-    const pm25Val = normalizedPollutants["PM2.5"]?.value;
-    const pm10Val = normalizedPollutants["PM10"]?.value;
-    const hisiResult = calculateHISI(pm25Val, pm10Val);
-
     const freshnessMinutes = Math.max(
       5,
       Math.round(
@@ -160,29 +214,19 @@ export async function getAirQualityReport(params: {
       "OPENAQ_V3"
     );
 
-    const report: NormalizedAirQualityReport = {
+    const report = assembleReportFromNormalized({
       station: openAQData.station,
-      calculatedAt: new Date().toISOString(),
-      cpcbNAQI: cpcbResult.aqi,
-      cpcbCategory: cpcbResult.category,
-      dominantPollutant: cpcbResult.dominantPollutant,
-      isDataSufficient: cpcbResult.isDataSufficient,
-      dataSufficiencyNotes: cpcbResult.notes,
-      hisi: hisiResult.hisi,
-      hisiCategory: hisiResult.category,
-      pollutants: normalizedPollutants as Record<PollutantCode, PollutantDetail | undefined>,
+      normalizedPollutants,
       weather,
-      provenance: {
-        type: "OPENAQ_V3",
-        badgeText: `Live OpenAQ Feed: ${openAQData.station.name}`,
-        source: `OpenAQ v3 Indian Station Pipeline (${openAQData.station.sourceProvider})`,
-        freshnessMinutes,
-        confidenceScore,
-        isInterpolated: false,
-        isDemo: false,
-      },
+      provenanceType: "OPENAQ_V3",
+      badgeText: `Live OpenAQ Feed: ${openAQData.station.name}`,
+      source: `OpenAQ v3 Indian Station Pipeline (${openAQData.station.sourceProvider})`,
+      freshnessMinutes,
+      confidenceScore,
       disclaimer: "Real-time telemetry normalized under Indian CPCB 2014 standards.",
-    };
+      isInterpolated: false,
+      isDemo: false,
+    });
 
     await setCachedAQIReport(cacheKey, report);
     return report;
@@ -192,7 +236,7 @@ export async function getAirQualityReport(params: {
   const openMeteoReadings = await fetchOpenMeteoAirQuality(latitude, longitude);
   const nearbyStations = getNearbyCPCBStations(latitude, longitude, 50);
   const closestStation = nearbyStations[0] || {
-    id: `STN_${Math.round(latitude * 100)}_${Math.round(longitude * 100)}`,
+    id: `STN_${Math.abs(Math.round(latitude * 100))}_${Math.abs(Math.round(longitude * 100))}`,
     name: `Local Atmospheric Grid (${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E)`,
     city: "Local Region",
     state: "India",
@@ -205,34 +249,19 @@ export async function getAirQualityReport(params: {
 
   if (openMeteoReadings && openMeteoReadings.length >= 2) {
     const normalizedPollutants = normalizePollutantReadings(openMeteoReadings);
-    const cpcbResult = calculateCompositeCPCB_NAQI(normalizedPollutants);
-    const pm25Val = normalizedPollutants["PM2.5"]?.value;
-    const pm10Val = normalizedPollutants["PM10"]?.value;
-    const hisiResult = calculateHISI(pm25Val, pm10Val);
-
-    const report: NormalizedAirQualityReport = {
+    const report = assembleReportFromNormalized({
       station: closestStation,
-      calculatedAt: new Date().toISOString(),
-      cpcbNAQI: cpcbResult.aqi,
-      cpcbCategory: cpcbResult.category,
-      dominantPollutant: cpcbResult.dominantPollutant,
-      isDataSufficient: cpcbResult.isDataSufficient,
-      dataSufficiencyNotes: cpcbResult.notes,
-      hisi: hisiResult.hisi,
-      hisiCategory: hisiResult.category,
-      pollutants: normalizedPollutants as Record<PollutantCode, PollutantDetail | undefined>,
+      normalizedPollutants,
       weather,
-      provenance: {
-        type: "LIVE_REANALYSIS" as DataProvenanceType,
-        badgeText: `Live Atmospheric Grid: ${closestStation.name}`,
-        source: `Open-Meteo & CAAQMS Integrated Global Atmospheric Grid (${closestStation.name})`,
-        freshnessMinutes: 5,
-        confidenceScore: 0.95,
-        isInterpolated: false,
-        isDemo: false,
-      },
+      provenanceType: "LIVE_REANALYSIS",
+      badgeText: `Live Atmospheric Grid: ${closestStation.name}`,
+      source: `Open-Meteo & CAAQMS Integrated Global Atmospheric Grid (${closestStation.name})`,
+      freshnessMinutes: 5,
+      confidenceScore: 0.95,
       disclaimer: "Real-time atmospheric reanalysis normalized under Indian CPCB 2014 standards.",
-    };
+      isInterpolated: false,
+      isDemo: false,
+    });
 
     await setCachedAQIReport(cacheKey, report);
     return report;

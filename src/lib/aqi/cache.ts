@@ -43,9 +43,10 @@ export async function getCachedAQIReport(key: string): Promise<NormalizedAirQual
 
   // 2. Check Upstash Redis if configured
   if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+    let timeoutId: NodeJS.Timeout | undefined;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 400); // 400ms circuit breaker timeout
+      timeoutId = setTimeout(() => controller.abort(), 400); // 400ms circuit breaker timeout
 
       const res = await fetch(`${env.UPSTASH_REDIS_REST_URL}/get/${encodeURIComponent(key)}`, {
         headers: {
@@ -53,8 +54,6 @@ export async function getCachedAQIReport(key: string): Promise<NormalizedAirQual
         },
         signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       if (res.ok) {
         const json = await res.json();
@@ -65,8 +64,11 @@ export async function getCachedAQIReport(key: string): Promise<NormalizedAirQual
           return parsed;
         }
       }
-    } catch {
+    } catch (error) {
       // Fail-open: Redis timeout or network error falls through silently to provider fetch
+      console.debug("[Cache] Upstash Redis read error:", error);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
@@ -89,9 +91,10 @@ export async function setCachedAQIReport(key: string, data: NormalizedAirQuality
 
   // 2. Store in Upstash Redis if configured
   if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+    let timeoutId: NodeJS.Timeout | undefined;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 400);
+      timeoutId = setTimeout(() => controller.abort(), 400);
 
       await fetch(
         `${env.UPSTASH_REDIS_REST_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(
@@ -104,10 +107,11 @@ export async function setCachedAQIReport(key: string, data: NormalizedAirQuality
           signal: controller.signal,
         }
       );
-
-      clearTimeout(timeoutId);
-    } catch {
-      // Fail-open
+    } catch (error) {
+      // Fail-open: Redis timeout or network error should not block user experience
+      console.debug("[Cache] Upstash Redis write error:", error);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 }

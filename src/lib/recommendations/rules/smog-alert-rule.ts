@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences } from "../types";
+import { Recommendation, UserPreferences, createSupportingData } from "../types";
 
 /**
  * Rule: Acute Severe Smog Episodic Alert.
@@ -23,16 +23,7 @@ export function evaluateSmogAlertRule(
     return null;
   }
 
-  const supportingData = {
-    aqi: report.cpcbNAQI,
-    aqiCategory: report.cpcbCategory,
-    dominantPollutant: report.dominantPollutant,
-    pm25Value: report.pollutants["PM2.5"]?.value,
-    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
-    windSpeedKmh: report.weather.windSpeedKmh,
-    isInversionActive: report.weather.isInversionActive,
-  };
-
+  const supportingData = createSupportingData(report);
   const supportingDataText = `Status: SEVERE SMOG EPISODE, AQI: ${aqi}, HISI Peak: ${report.hisi}, Inversion Mixing Depth: ${Math.round(report.weather.boundaryLayerHeightMeters)}m`;
 
   return {

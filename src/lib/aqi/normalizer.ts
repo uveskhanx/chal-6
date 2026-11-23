@@ -11,6 +11,25 @@ import {
 } from "./cpcb-calculator";
 
 /**
+ * Physical Constants for Standard Atmospheric Gas Conversions:
+ * At standard ambient temperature (25°C = 298.15 K) and pressure (1 atm = 101.325 kPa),
+ * the molar volume of an ideal gas is V_m = 24.45 L/mol.
+ *
+ * Concentration Conversion Formula:
+ *   µg/m³ = ppm × (M / 24.45) × 1000
+ * where M is the molecular weight in g/mol:
+ *   - NO2: 46.0055 g/mol  -> 1 ppm = 1881.6 µg/m³  (approx 1882 µg/m³)
+ *   - SO2: 64.066 g/mol   -> 1 ppm = 2620.3 µg/m³  (approx 2620 µg/m³)
+ *   - O3:  48.000 g/mol   -> 1 ppm = 1963.2 µg/m³  (approx 1963 µg/m³)
+ *   - CO:  28.010 g/mol   -> 1 ppm = 1.145 mg/m³
+ */
+export const MOLAR_VOLUME_L_PER_MOL = 24.45;
+export const CO_PPM_TO_MG_M3 = 1.145;
+export const NO2_PPM_TO_UG_M3 = 1882;
+export const SO2_PPM_TO_UG_M3 = 2620;
+export const O3_PPM_TO_UG_M3 = 1963;
+
+/**
  * Converts gas concentrations from ppm or ppb to standard metric units:
  * - CO: mg/m³
  * - NO2, SO2, O3, NH3: µg/m³
@@ -36,8 +55,7 @@ export function normalizePollutantValue(
       return { normalizedValue: rawValue / 1000, unit: "mg/m³" };
     }
     if (cleanUnit === "ppm") {
-      // 1 ppm CO = 1.145 mg/m³ at 25°C
-      return { normalizedValue: rawValue * 1.145, unit: "mg/m³" };
+      return { normalizedValue: rawValue * CO_PPM_TO_MG_M3, unit: "mg/m³" };
     }
     // Default fallback assumption for CO
     return { normalizedValue: rawValue, unit: "mg/m³" };
@@ -53,16 +71,16 @@ export function normalizePollutantValue(
 
   // Gas conversions from ppm / ppb at 25°C: Concentration (µg/m³) = ppm * (M / 24.45) * 1000
   if (pollutant === "NO2") {
-    if (cleanUnit === "ppm") return { normalizedValue: rawValue * 1882, unit: "µg/m³" };
-    if (cleanUnit === "ppb") return { normalizedValue: rawValue * 1.882, unit: "µg/m³" };
+    if (cleanUnit === "ppm") return { normalizedValue: rawValue * NO2_PPM_TO_UG_M3, unit: "µg/m³" };
+    if (cleanUnit === "ppb") return { normalizedValue: rawValue * (NO2_PPM_TO_UG_M3 / 1000), unit: "µg/m³" };
   }
   if (pollutant === "SO2") {
-    if (cleanUnit === "ppm") return { normalizedValue: rawValue * 2620, unit: "µg/m³" };
-    if (cleanUnit === "ppb") return { normalizedValue: rawValue * 2.620, unit: "µg/m³" };
+    if (cleanUnit === "ppm") return { normalizedValue: rawValue * SO2_PPM_TO_UG_M3, unit: "µg/m³" };
+    if (cleanUnit === "ppb") return { normalizedValue: rawValue * (SO2_PPM_TO_UG_M3 / 1000), unit: "µg/m³" };
   }
   if (pollutant === "O3") {
-    if (cleanUnit === "ppm") return { normalizedValue: rawValue * 1963, unit: "µg/m³" };
-    if (cleanUnit === "ppb") return { normalizedValue: rawValue * 1.963, unit: "µg/m³" };
+    if (cleanUnit === "ppm") return { normalizedValue: rawValue * O3_PPM_TO_UG_M3, unit: "µg/m³" };
+    if (cleanUnit === "ppb") return { normalizedValue: rawValue * (O3_PPM_TO_UG_M3 / 1000), unit: "µg/m³" };
   }
 
   // Default to rawValue in µg/m³

@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences } from "../types";
+import { Recommendation, UserPreferences, createSupportingData } from "../types";
 
 /**
  * Rule: Indoor Natural Ventilation & Window Sealing Decision.
@@ -21,16 +21,7 @@ export function evaluateVentilationRule(
   const isInversion = report.weather.isInversionActive || boundaryLayer < 250;
   const isSolarWindow = currentHour >= 12 && currentHour <= 15;
 
-  const supportingData = {
-    aqi: report.cpcbNAQI,
-    aqiCategory: report.cpcbCategory,
-    dominantPollutant: report.dominantPollutant,
-    pm25Value: pm25,
-    boundaryLayerMeters: boundaryLayer,
-    windSpeedKmh: report.weather.windSpeedKmh,
-    isInversionActive: report.weather.isInversionActive,
-  };
-
+  const supportingData = createSupportingData(report);
   const supportingDataText = `Boundary Layer: ${Math.round(boundaryLayer)}m, Inversion Active: ${isInversion ? "Yes" : "No"}, PM2.5: ${pm25} µg/m³`;
 
   // Case 1: Inversion trapped or severe particulate pollution

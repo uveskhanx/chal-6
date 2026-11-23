@@ -14,10 +14,10 @@ export interface ToolParameterSchema {
   required?: string[];
 }
 
-export interface AgentTool {
+export interface AgentTool<TArgs = Record<string, unknown>> {
   name: string;
   description: string;
   parameters: ToolParameterSchema;
-  argumentSchema: z.ZodSchema;
-  execute: (args: Record<string, unknown>, context: AgentContext) => Promise<unknown>;
+  argumentSchema: z.ZodType<TArgs>;
+  execute: (args: TArgs, context: AgentContext) => Promise<unknown>;
 }

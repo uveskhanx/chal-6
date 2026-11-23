@@ -10,10 +10,11 @@ export async function calculateOSRMRoute(
   destination: RoutePoint,
   profile: "driving" | "walking" | "cycling" = "driving"
 ): Promise<CalculatedRoute | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4500);
-
+  let timeoutId: NodeJS.Timeout | undefined;
   try {
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), 4500);
+
     const endpoint = `https://router.project-osrm.org/route/v1/${profile}/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?overview=full&geometries=geojson&steps=true`;
 
     const res = await fetch(endpoint, {
@@ -23,7 +24,6 @@ export async function calculateOSRMRoute(
         "User-Agent": "SaansAI-CommuteOptimizer/1.0 (Google Developers Challenge 6)",
       },
     });
-    clearTimeout(timeout);
 
     if (!res.ok) {
       return null;
@@ -102,8 +102,10 @@ export async function calculateOSRMRoute(
       isEstimated: false,
       trafficAware: false,
     };
-  } catch {
-    clearTimeout(timeout);
+  } catch (error) {
+    console.warn("[OSRM] Routing request failed:", error);
     return null;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

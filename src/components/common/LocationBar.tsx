@@ -150,7 +150,8 @@ export function LocationBar({
           setLocError(`No location found for "${searchQuery}". Please check the spelling.`);
         }
       }
-    } catch {
+    } catch (error) {
+      console.warn("[LocationBar] Geocoding lookup error:", error);
       setLocError("Geocoding lookup failed. Please pick a city from the list.");
     } finally {
       setIsSearching(false);

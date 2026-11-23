@@ -72,7 +72,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const initial = stored || "light";
       setThemeState(initial);
       applyTheme(initial);
-    } catch {
+    } catch (error) {
+      console.debug("[ThemeProvider] LocalStorage read failed, falling back to light theme:", error);
       applyTheme("light");
     }
     setMounted(true);
@@ -95,8 +96,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(newTheme);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    } catch {
-      // Ignore storage errors in restricted iframes
+    } catch (error) {
+      // Storage restricted or unavailable (e.g. sandboxed iframe)
+      console.debug("[ThemeProvider] LocalStorage write restricted:", error);
     }
     applyTheme(newTheme);
   };

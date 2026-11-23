@@ -141,6 +141,121 @@ export async function fetchRouteOpenAQStations(
   }
 }
 
+interface EvaluateSegmentParams {
+  segmentIndex: number;
+  startPt: RoutePoint;
+  endPt: RoutePoint;
+  segDistKm: number;
+  segDurationMins: number;
+  candidates: StationWithReadings[];
+  ambientBaselinePM25: number;
+  diurnalFactor: number;
+}
+
+/**
+ * Evaluates spatial particulate concentration and provenance for a single route segment.
+ */
+function evaluateRouteSegmentExposure(params: EvaluateSegmentParams): {
+  segment: SegmentExposurePoint;
+  nearestStationName: string;
+} {
+  const {
+    segmentIndex,
+    startPt,
+    endPt,
+    segDistKm,
+    segDurationMins,
+    candidates,
+    ambientBaselinePM25,
+    diurnalFactor,
+  } = params;
+
+  const midLat = (startPt.lat + endPt.lat) / 2;
+  const midLon = (startPt.lon + endPt.lon) / 2;
+
+  // Apply Spatial IDW interpolation for midpoint
+  const idwResult = interpolateSpatialAQI(midLat, midLon, candidates, 35, 3);
+
+  let rawPM25 = ambientBaselinePM25;
+  let rawPM10 = ambientBaselinePM25 * 1.55;
+  let nearestDist = 5.0;
+
+  if (idwResult && idwResult.interpolatedReadings.length > 0) {
+    const pm25Reading = idwResult.interpolatedReadings.find((r) => r.pollutant === "PM2.5");
+    const pm10Reading = idwResult.interpolatedReadings.find((r) => r.pollutant === "PM10");
+
+    if (pm25Reading && Number.isFinite(pm25Reading.value)) {
+      rawPM25 = pm25Reading.value;
+    }
+    if (pm10Reading && Number.isFinite(pm10Reading.value)) {
+      rawPM10 = pm10Reading.value;
+    }
+    nearestDist = idwResult.averageDistanceKm;
+  }
+
+  // Identify nearest station by coordinates
+  let minStationDist = Infinity;
+  let nearestStationObj = candidates[0];
+
+  for (const c of candidates) {
+    const d = calculateHaversineDistanceKm(midLat, midLon, c.station.latitude, c.station.longitude);
+    if (d < minStationDist) {
+      minStationDist = d;
+      nearestStationObj = c;
+    }
+  }
+  const nearestStation = nearestStationObj.station.name;
+
+  // Distinguish real observation vs interpolated estimate vs assumption
+  const isNearestOpenAQ =
+    nearestStationObj.station.sourceProvider === "OPENAQ" ||
+    nearestStationObj.station.id.startsWith("openaq_");
+  const isNearestCPCB = nearestStationObj.station.sourceProvider === "CPCB";
+
+  let measurementType: ExposureMeasurementType;
+  let stationProvider: "OPENAQ" | "CPCB" | "SYNTHESIZED" = "SYNTHESIZED";
+
+  if (isNearestOpenAQ && minStationDist <= 12) {
+    measurementType = "real_openaq";
+    stationProvider = "OPENAQ";
+  } else if (isNearestCPCB && minStationDist <= 8) {
+    measurementType = "real_cpcb";
+    stationProvider = "CPCB";
+  } else if (idwResult && idwResult.usedStationsCount > 1) {
+    measurementType = "idw_spatial_interpolation";
+    stationProvider = isNearestOpenAQ ? "OPENAQ" : "CPCB";
+  } else {
+    measurementType = "calibrated_baseline";
+    stationProvider = "SYNTHESIZED";
+  }
+
+  // Apply Diurnal Boundary Layer multiplier
+  const adjustedPM25 = Math.round(rawPM25 * diurnalFactor);
+  const adjustedPM10 = Math.round(rawPM10 * diurnalFactor);
+
+  // Confidence score degrades with distance from nearest official monitor
+  const confidence = Math.max(0.5, Number((Math.exp(-nearestDist / 25) * 0.95).toFixed(2)));
+
+  const segment: SegmentExposurePoint = {
+    segmentIndex,
+    start: startPt,
+    end: endPt,
+    distanceKm: Number(segDistKm.toFixed(2)),
+    durationMinutes: Number(segDurationMins.toFixed(1)),
+    estimatedPM25: adjustedPM25,
+    estimatedPM10: adjustedPM10,
+    nearestStationName: nearestStation,
+    nearestStationDistanceKm: Number(minStationDist.toFixed(1)),
+    confidenceScore: confidence,
+    diurnalDispersionFactor: diurnalFactor,
+    isHotspot: false, // Flagged after computing route mean
+    measurementType,
+    stationProvider,
+  };
+
+  return { segment, nearestStationName: nearestStation };
+}
+
 /**
  * Spatial Pollution Exposure Engine
  * Discretizes route geometry, samples IDW spatial air quality, applies diurnal ABL factors,
@@ -217,92 +332,22 @@ export function sampleRouteSpatialExposure(
     const startPt: RoutePoint = { lat: rawGeom[startIdx][0], lon: rawGeom[startIdx][1] };
     const endPt: RoutePoint = { lat: rawGeom[endIdx][0], lon: rawGeom[endIdx][1] };
 
-    const midLat = (startPt.lat + endPt.lat) / 2;
-    const midLon = (startPt.lon + endPt.lon) / 2;
-
     const segDistKm = calculateHaversineDistanceKm(startPt.lat, startPt.lon, endPt.lat, endPt.lon);
     const segDurationMins = Math.max(0.5, (segDistKm / Math.max(0.1, route.distanceKm)) * route.durationMinutes);
 
-    // Apply Spatial IDW interpolation for midpoint
-    const idwResult = interpolateSpatialAQI(midLat, midLon, candidates, 35, 3);
-
-    let rawPM25 = ambientBaselinePM25;
-    let rawPM10 = ambientBaselinePM25 * 1.55;
-    let nearestDist = 5.0;
-
-    if (idwResult && idwResult.interpolatedReadings.length > 0) {
-      const pm25Reading = idwResult.interpolatedReadings.find((r) => r.pollutant === "PM2.5");
-      const pm10Reading = idwResult.interpolatedReadings.find((r) => r.pollutant === "PM10");
-
-      if (pm25Reading && Number.isFinite(pm25Reading.value)) {
-        rawPM25 = pm25Reading.value;
-      }
-      if (pm10Reading && Number.isFinite(pm10Reading.value)) {
-        rawPM10 = pm10Reading.value;
-      }
-      nearestDist = idwResult.averageDistanceKm;
-    }
-
-    // Identify nearest station by coordinates
-    let minStationDist = Infinity;
-    let nearestStationObj = candidates[0];
-
-    for (const c of candidates) {
-      const d = calculateHaversineDistanceKm(midLat, midLon, c.station.latitude, c.station.longitude);
-      if (d < minStationDist) {
-        minStationDist = d;
-        nearestStationObj = c;
-      }
-    }
-    const nearestStation = nearestStationObj.station.name;
-    sourceStationSet.add(nearestStation);
-
-    // Distinguish real observation vs interpolated estimate vs assumption
-    const isNearestOpenAQ =
-      nearestStationObj.station.sourceProvider === "OPENAQ" ||
-      nearestStationObj.station.id.startsWith("openaq_");
-    const isNearestCPCB = nearestStationObj.station.sourceProvider === "CPCB";
-
-    let measurementType: ExposureMeasurementType;
-    let stationProvider: "OPENAQ" | "CPCB" | "SYNTHESIZED" = "SYNTHESIZED";
-
-    if (isNearestOpenAQ && minStationDist <= 12) {
-      measurementType = "real_openaq";
-      stationProvider = "OPENAQ";
-    } else if (isNearestCPCB && minStationDist <= 8) {
-      measurementType = "real_cpcb";
-      stationProvider = "CPCB";
-    } else if (idwResult && idwResult.usedStationsCount > 1) {
-      measurementType = "idw_spatial_interpolation";
-      stationProvider = isNearestOpenAQ ? "OPENAQ" : "CPCB";
-    } else {
-      measurementType = "calibrated_baseline";
-      stationProvider = "SYNTHESIZED";
-    }
-
-    // Apply Diurnal Boundary Layer multiplier
-    const adjustedPM25 = Math.round(rawPM25 * diurnal.factor);
-    const adjustedPM10 = Math.round(rawPM10 * diurnal.factor);
-
-    // Confidence score degrades with distance from nearest official monitor
-    const confidence = Math.max(0.5, Number((Math.exp(-nearestDist / 25) * 0.95).toFixed(2)));
-
-    segments.push({
+    const { segment, nearestStationName } = evaluateRouteSegmentExposure({
       segmentIndex: i,
-      start: startPt,
-      end: endPt,
-      distanceKm: Number(segDistKm.toFixed(2)),
-      durationMinutes: Number(segDurationMins.toFixed(1)),
-      estimatedPM25: adjustedPM25,
-      estimatedPM10: adjustedPM10,
-      nearestStationName: nearestStation,
-      nearestStationDistanceKm: Number(minStationDist.toFixed(1)),
-      confidenceScore: confidence,
-      diurnalDispersionFactor: diurnal.factor,
-      isHotspot: false, // Flagged below
-      measurementType,
-      stationProvider,
+      startPt,
+      endPt,
+      segDistKm,
+      segDurationMins,
+      candidates,
+      ambientBaselinePM25,
+      diurnalFactor: diurnal.factor,
     });
+
+    sourceStationSet.add(nearestStationName);
+    segments.push(segment);
   }
 
   // Calculate route statistics

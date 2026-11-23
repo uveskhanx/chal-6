@@ -4,6 +4,19 @@ import { DEFAULT_ROOM_PROFILES } from "./constants";
 
 export type { StoredRoom };
 
+/**
+ * Creates a deep clone of a stored room object to preserve store immutability.
+ */
+function cloneStoredRoom(room: StoredRoom): StoredRoom {
+  return {
+    ...room,
+    config: {
+      ...room.config,
+      dimensions: { ...room.config.dimensions },
+    },
+  };
+}
+
 // In-memory persistent room store partitioned by userId
 const userRoomMap = new Map<string, Map<string, StoredRoom>>();
 
@@ -22,7 +35,7 @@ function ensureUserRooms(userId: string): Map<string, StoredRoom> {
         userId,
         createdAt: now,
         updatedAt: now,
-        config: { ...config, id: key },
+        config: { ...config, id: key, dimensions: { ...config.dimensions } },
       });
     }
     userRoomMap.set(userId, rooms);
@@ -32,7 +45,7 @@ function ensureUserRooms(userId: string): Map<string, StoredRoom> {
 
 export function getUserRooms(userId: string): StoredRoom[] {
   const rooms = ensureUserRooms(userId);
-  return Array.from(rooms.values());
+  return Array.from(rooms.values()).map(cloneStoredRoom);
 }
 
 export function getRoomById(userId: string, roomId: string): StoredRoom | null {
@@ -41,7 +54,7 @@ export function getRoomById(userId: string, roomId: string): StoredRoom | null {
   if (!found || found.userId !== userId) {
     return null;
   }
-  return found;
+  return cloneStoredRoom(found);
 }
 
 export function saveUserRoom(userId: string, config: Partial<RoomConfiguration>): StoredRoom {
@@ -68,7 +81,7 @@ export function saveUserRoom(userId: string, config: Partial<RoomConfiguration>)
   };
 
   rooms.set(roomId, storedRoom);
-  return storedRoom;
+  return cloneStoredRoom(storedRoom);
 }
 
 export function deleteUserRoom(userId: string, roomId: string): boolean {

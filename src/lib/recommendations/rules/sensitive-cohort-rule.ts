@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences } from "../types";
+import { Recommendation, UserPreferences, createSupportingData } from "../types";
 
 /**
  * Rule: Sensitive & Vulnerable Cohort Protection.
@@ -27,16 +27,7 @@ export function evaluateSensitiveCohortRule(
     return null;
   }
 
-  const supportingData = {
-    aqi: report.cpcbNAQI,
-    aqiCategory: report.cpcbCategory,
-    dominantPollutant: report.dominantPollutant,
-    pm25Value: report.pollutants["PM2.5"]?.value,
-    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
-    windSpeedKmh: report.weather.windSpeedKmh,
-    isInversionActive: report.weather.isInversionActive,
-  };
-
+  const supportingData = createSupportingData(report);
   const isChildElderly = preferences.sensitivity === "vulnerable_household";
   const priority = aqi > 300 ? "critical" : aqi > 200 ? "high" : "medium";
 

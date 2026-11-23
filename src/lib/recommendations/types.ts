@@ -96,6 +96,22 @@ export interface RecommendationSupportingData {
   isInversionActive?: boolean;
 }
 
+/**
+ * Creates standardized supporting data payload from an air quality report.
+ */
+export function createSupportingData(report: NormalizedAirQualityReport): RecommendationSupportingData {
+  return {
+    aqi: report.cpcbNAQI,
+    aqiCategory: report.cpcbCategory,
+    dominantPollutant: report.dominantPollutant,
+    pm25Value: report.pollutants["PM2.5"]?.value,
+    pm10Value: report.pollutants["PM10"]?.value,
+    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
+    windSpeedKmh: report.weather.windSpeedKmh,
+    isInversionActive: report.weather.isInversionActive,
+  };
+}
+
 export interface Recommendation {
   id: string;
   title: string;

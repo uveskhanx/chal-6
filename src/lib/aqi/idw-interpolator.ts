@@ -7,6 +7,17 @@ export interface StationWithReadings {
   readings: RawPollutantReading[];
 }
 
+const CRITERIA_POLLUTANT_CODES: readonly PollutantCode[] = [
+  "PM2.5",
+  "PM10",
+  "NO2",
+  "SO2",
+  "CO",
+  "O3",
+  "NH3",
+  "Pb",
+] as const;
+
 /**
  * Pure Deterministic Inverse Distance Weighting (IDW) with power parameter p = 2.
  * Interpolates pollutant concentrations for target coordinates from nearest active stations.
@@ -51,10 +62,9 @@ export function interpolateSpatialAQI(
 
   // Take k nearest neighbors
   const nearest = stationsWithDist.slice(0, maxNeighbors);
-  const pollutantCodes: PollutantCode[] = ["PM2.5", "PM10", "NO2", "SO2", "CO", "O3", "NH3", "Pb"];
   const interpolatedReadings: RawPollutantReading[] = [];
 
-  for (const pollutant of pollutantCodes) {
+  for (const pollutant of CRITERIA_POLLUTANT_CODES) {
     let weightSum = 0;
     let weightedValueSum = 0;
     let sampleCount = 0;
@@ -63,8 +73,9 @@ export function interpolateSpatialAQI(
     for (const item of nearest) {
       const reading = item.readings.find((r) => r.pollutant === pollutant);
       if (reading && Number.isFinite(reading.value) && reading.value >= 0) {
-        // IDW weight w_i = 1 / d_i^2
-        const weight = 1 / Math.pow(item.distanceKm, 2);
+        // IDW weight w_i = 1 / d_i^2 with numerical floor
+        const safeDist = Math.max(0.05, item.distanceKm);
+        const weight = 1 / (safeDist * safeDist);
         weightSum += weight;
         weightedValueSum += weight * reading.value;
         unit = reading.unit;

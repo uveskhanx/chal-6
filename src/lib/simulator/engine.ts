@@ -25,6 +25,27 @@ export interface EngineRunOptions {
 }
 
 /**
+ * Computes exact piecewise analytical integration of differential aerosol mass balance:
+ *   dC/dt = alpha - K_total * C
+ * Analytical Solution:
+ *   C(t + dt) = C_ss + (C(t) - C_ss) * exp(-K_total * dt)
+ *   where C_ss = alpha / K_total
+ */
+export function stepAnalyticalConcentration(
+  currentC: number,
+  alpha: number,
+  kTotal: number,
+  dtHours: number
+): number {
+  if (kTotal <= 0) {
+    return Math.max(0, currentC + alpha * dtHours);
+  }
+  const cSteadyState = alpha / kTotal;
+  const updatedC = cSteadyState + (currentC - cSteadyState) * Math.exp(-kTotal * dtHours);
+  return Math.max(0, updatedC);
+}
+
+/**
  * Calculates the exact room geometric volume in cubic meters.
  * Formula: Volume (m³) = Length (m) × Width (m) × Height (m)
  */
@@ -163,32 +184,16 @@ export function runIndoorSimulation(options: EngineRunOptions): SimulationOutput
       timeToCleanToGoodMinutes = minute;
     }
 
-    // Advance to next time point using analytical integration
+    // Advance to next time point using exact analytical piecewise integration
     if (minute < totalMinutes) {
       const activeS_pm25 = isSourceActive ? S_rate_pm25_hourly : 0;
       const activeS_pm10 = isSourceActive ? S_rate_pm10_hourly : 0;
 
-      // PM2.5 Integration
       const alpha_pm25 = P_pm25 * effectiveACH * C_out_pm25 + activeS_pm25 / roomVolumeM3;
-      if (K_total_pm25 > 0) {
-        const C_ss_pm25 = alpha_pm25 / K_total_pm25;
-        currentPM25 = C_ss_pm25 + (currentPM25 - C_ss_pm25) * Math.exp(-K_total_pm25 * timeStepHours);
-      } else {
-        currentPM25 += alpha_pm25 * timeStepHours;
-      }
-
-      // PM10 Integration
       const alpha_pm10 = P_pm10 * effectiveACH * C_out_pm10 + activeS_pm10 / roomVolumeM3;
-      if (K_total_pm10 > 0) {
-        const C_ss_pm10 = alpha_pm10 / K_total_pm10;
-        currentPM10 = C_ss_pm10 + (currentPM10 - C_ss_pm10) * Math.exp(-K_total_pm10 * timeStepHours);
-      } else {
-        currentPM10 += alpha_pm10 * timeStepHours;
-      }
 
-      // Absolute non-negativity guard
-      if (currentPM25 < 0) currentPM25 = 0;
-      if (currentPM10 < 0) currentPM10 = 0;
+      currentPM25 = stepAnalyticalConcentration(currentPM25, alpha_pm25, K_total_pm25, timeStepHours);
+      currentPM10 = stepAnalyticalConcentration(currentPM10, alpha_pm10, K_total_pm10, timeStepHours);
     }
   }
 

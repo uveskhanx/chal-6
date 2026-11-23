@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
           try {
             const payload = `data: ${JSON.stringify(event)}\n\n`;
             controller.enqueue(encoder.encode(payload));
-          } catch {
-            // Stream might be closed if client disconnected
+          } catch (streamError) {
+            // Client closed connection or stream terminated
+            console.debug("[API /api/chat] Client disconnected or stream closed prematurely:", streamError);
           }
         };
 

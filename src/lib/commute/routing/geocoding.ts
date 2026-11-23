@@ -125,9 +125,10 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
   }
 
   // 2. Query OpenStreetMap Nominatim with strict timeout
+  let timeoutId: NodeJS.Timeout | undefined;
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1800);
+    timeoutId = setTimeout(() => controller.abort(), 1800);
 
     const endpoint = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
       query
@@ -140,7 +141,6 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
         Accept: "application/json",
       },
     });
-    clearTimeout(timeout);
 
     if (res.ok) {
       const data = await res.json();
@@ -163,8 +163,10 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
         }
       }
     }
-  } catch {
-    // Graceful fallback on network timeout / restriction
+  } catch (error) {
+    console.warn("[Geocoding] OSM Nominatim geocoding lookup failed:", error);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 
   // 3. Fallback: If query contains "delhi" or looks like an address, return Delhi central anchor with note

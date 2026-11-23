@@ -1,5 +1,5 @@
 import { NormalizedAirQualityReport } from "../../aqi/types";
-import { Recommendation, UserPreferences } from "../types";
+import { Recommendation, UserPreferences, createSupportingData } from "../types";
 
 /**
  * Rule: Low-Emission Daily Routines & Community Collective Action.
@@ -25,16 +25,7 @@ export function evaluateLowEmissionRoutineRule(
   const commuteMode = preferences.commuteMode;
   const cookingFuel = preferences.household?.cookingFuel || "lpg_gas";
 
-  const supportingData = {
-    aqi: report.cpcbNAQI,
-    aqiCategory: report.cpcbCategory,
-    dominantPollutant: report.dominantPollutant,
-    pm25Value: pm25,
-    boundaryLayerMeters: report.weather.boundaryLayerHeightMeters,
-    windSpeedKmh: report.weather.windSpeedKmh,
-    isInversionActive: report.weather.isInversionActive,
-  };
-
+  const supportingData = createSupportingData(report);
   const supportingDataText = `Current AQI: ${aqi} (${report.cpcbCategory}), PM2.5: ${pm25} µg/m³. GRAP Stage IV emergency controls active.`;
 
   // 1. Commute Mode Shift to Low-Emission Mass Transit
